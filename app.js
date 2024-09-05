@@ -8,6 +8,8 @@ var usersRouter = require('./routes/users');
 const { Server } = require("socket.io");
 const http = require('http');
 const dotenv = require('dotenv')
+const { S3Client, GetObjectCommand, PutObjectCommand, S3 } = require('@aws-sdk/client-s3')
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 
 dotenv.config()
 
@@ -54,6 +56,14 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
+const s3Client = new S3Client({
+  region:"ap-south-1",
+  credentials:{
+    accessKeyId:process.env.ACCESS_KEY_ID,
+    secretAccessKey:process.env.SECRET_ACCESS_KEY
+  }
+})
+
 const connectedUsers = {};
 const chatRequests = {};
 const publicUsers = {};
@@ -68,6 +78,8 @@ function getSocketIdfromNicknamePUBLIC(nickname) {
 
 io.on('connection', (socket) => {
   console.log("connected");
+
+
   //PublicChat
   socket.on('publicJoin',(nickname)=>{
     socket.join("publicRoom")
@@ -91,6 +103,40 @@ io.on('connection', (socket) => {
     }
   })
 
+  //Upload File
+  socket.on('fileMeta',async ({fileName, contentType})=>{
+    console.log(fileName)
+    async function putObjectUrl(filename, contentType){
+      const command = new PutObjectCommand({
+        Bucket: "nodejs-privatee",
+        Key:`/uploads/${filename}`,
+        ContentType: contentType
+      })
+      const url = await getSignedUrl(s3Client,command)
+      console.log(url)
+      return url
+
+    }
+    const presSignedUrl = await putObjectUrl(fileName, contentType)
+    socket.emit('preSignedUrl',presSignedUrl)
+  })
+
+  socket.on('fileUploaded',async ({peer, nickname, key})=>{
+    async function getObjectUrl(key){
+      const command = new GetObjectCommand({
+        Bucket: "nodejs-privatee",
+        Key:key
+
+      })
+      const message = await getSignedUrl(s3Client,command)
+      const socketId = getSocketIdfromNickname(peer);
+      if (socketId) {
+        io.to(socketId).emit('newMessage', { message, from: nickname });
+        socket.emit('UploadedFileUrl',message)
+    }    
+  }
+  await getObjectUrl(key)
+  })
 
   //PersonalChat
   socket.on('join', (nickname) => {
