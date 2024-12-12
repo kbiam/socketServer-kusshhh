@@ -1,7 +1,8 @@
 var createError = require('http-errors');
-var router = express.Router();
 
 var express = require('express');
+var router = express.Router();
+
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
