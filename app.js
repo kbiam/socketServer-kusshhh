@@ -1,4 +1,6 @@
 var createError = require('http-errors');
+var router = express.Router();
+
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
@@ -62,6 +64,10 @@ const s3Client = new S3Client({
     accessKeyId:process.env.ACCESS_KEY_ID,
     secretAccessKey:process.env.SECRET_ACCESS_KEY
   }
+})
+
+router.get("/cron",(req,res)=>{
+  res.sendStatus(200)
 })
 
 const connectedUsers = {};
